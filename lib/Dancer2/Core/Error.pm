@@ -202,7 +202,6 @@ The message of the error page.
 
 has message => (
     is  => 'ro',
-    isa => Str,
 );
 
 sub full_message {
@@ -215,9 +214,18 @@ sub full_message {
 
 has serializer => (
     is        => 'ro',
-    isa       => ConsumerOf ['Dancer2::Core::Role::Serializer'],
-    predicate => 1,
+    isa       => Maybe[ConsumerOf ['Dancer2::Core::Role::Serializer']],
+    builder   => '_build_serializer',
 );
+
+sub _build_serializer {
+    my ($self) = @_;
+
+    if ( $self->has_context && $self->context->has_app ) {
+        return $self->context->app->engine('serializer');
+    }
+    return;
+}
 
 has session => (
     is  => 'ro',
@@ -258,7 +266,7 @@ has content_type => (
     lazy    => 1,
     default => sub {
         my $self = shift;
-        $self->has_serializer
+        $self->serializer
             ? $self->serializer->content_type
             : 'text/html'
     },
@@ -271,7 +279,7 @@ has content => (
         my $self = shift;
 
         # Apply serializer
-        if ( $self->has_serializer ) {
+        if ( $self->serializer ) {
             my $content = {
                 message => $self->message,
                 title   => $self->title,
